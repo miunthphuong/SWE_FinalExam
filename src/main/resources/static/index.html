@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SRMWeb Test UI</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    button { margin: 5px; }
+    pre { background:#f6f6f6; padding:10px; max-height:400px; overflow:auto; }
+    .row { margin-bottom:12px; }
+  </style>
+</head>
+<body>
+  <h2>SRMWeb - Quick Test UI</h2>
+
+  <div class="row">
+    <button id="btnListProducts">List all products</button>
+    <button id="btnListSuppliers">List all suppliers</button>
+  </div>
+
+  <div class="row">
+    <label>Get products by supplier id: <input id="supplierId" value="1" style="width:60px"></label>
+    <button id="btnBySupplier">Get</button>
+  </div>
+
+  <h3>Result</h3>
+  <pre id="out">Click a button to call the API</pre>
+
+  <script>
+    const out = document.getElementById('out');
+    function show(o){ out.textContent = JSON.stringify(o, null, 2); }
+
+    document.getElementById('btnListProducts').addEventListener('click', async ()=>{
+      const res = await fetch('/api/products');
+      show(await res.json());
+    });
+
+    document.getElementById('btnListSuppliers').addEventListener('click', async ()=>{
+      const res = await fetch('/api/suppliers');
+      show(await res.json());
+    });
+
+    document.getElementById('btnBySupplier').addEventListener('click', async ()=>{
+      const id = document.getElementById('supplierId').value;
+      const res = await fetch('/api/product/get/supplier/' + encodeURIComponent(id));
+      if (res.status >= 400) show({status: res.status, body: await res.json()}); else show(await res.json());
+    });
+  </script>
+</body>
+</html>
