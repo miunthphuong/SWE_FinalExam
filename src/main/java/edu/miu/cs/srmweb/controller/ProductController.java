@@ -2,6 +2,7 @@ package edu.miu.cs.srmweb.controller;
 
 import edu.miu.cs.srmweb.dto.ProductDTO;
 import edu.miu.cs.srmweb.dto.SupplierDTO;
+import edu.miu.cs.srmweb.exception.ResourceNotFoundException;
 import edu.miu.cs.srmweb.model.Product;
 import edu.miu.cs.srmweb.model.Supplier;
 import edu.miu.cs.srmweb.service.DataService;
@@ -40,12 +41,10 @@ public class ProductController {
     }
 
     @GetMapping("/product/get/supplier/{supplierId}")
-    public ResponseEntity<?> getProductsBySupplier(@PathVariable int supplierId) {
+    public ResponseEntity<List<ProductDTO>> getProductsBySupplier(@PathVariable int supplierId) {
         var opt = dataService.findSupplierById(supplierId);
         if (opt.isEmpty()) {
-            Map<String, String> err = new HashMap<>();
-            err.put("error", "Supplier with id " + supplierId + " not found");
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(err);
+            throw new ResourceNotFoundException("Supplier with id " + supplierId + " not found");
         }
         List<ProductDTO> products = dataService.getProductsBySupplierId(supplierId).stream().map(this::toDtoWithSupplier).collect(Collectors.toList());
         return ResponseEntity.ok(products);
@@ -65,7 +64,7 @@ public class ProductController {
         if (opt.isPresent()) {
             return ResponseEntity.ok(toDtoWithSupplier(opt.get()));
         } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(java.util.Map.of("error","Product not found"));
+            throw new ResourceNotFoundException("Product with id " + id + " not found");
         }
     }
 
@@ -73,7 +72,7 @@ public class ProductController {
     public ResponseEntity<?> deleteProduct(@PathVariable Long id) {
         boolean ok = dataService.deleteProduct(id);
         if (ok) return ResponseEntity.ok().build();
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(java.util.Map.of("error","Product not found"));
+        throw new ResourceNotFoundException("Product with id " + id + " not found");
     }
 
     private ProductDTO toDtoWithSupplier(Product p) {

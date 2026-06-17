@@ -2,6 +2,7 @@ package edu.miu.cs.srmweb.controller;
 
 import edu.miu.cs.srmweb.dto.ProductDTO;
 import edu.miu.cs.srmweb.dto.SupplierDTO;
+import edu.miu.cs.srmweb.exception.ResourceNotFoundException;
 import edu.miu.cs.srmweb.model.Product;
 import edu.miu.cs.srmweb.model.Supplier;
 import edu.miu.cs.srmweb.service.DataService;
@@ -51,7 +52,7 @@ public class SupplierController {
             Supplier s = opt.get();
             return ResponseEntity.ok(new SupplierDTO(s.getSupplierId(), s.getName(), s.getContactPhone()));
         } else {
-            return ResponseEntity.status(404).body(java.util.Map.of("error","Supplier not found"));
+            throw new ResourceNotFoundException("Supplier with id " + id + " not found");
         }
     }
 
@@ -59,7 +60,7 @@ public class SupplierController {
     public ResponseEntity<?> deleteSupplier(@org.springframework.web.bind.annotation.PathVariable Integer id) {
         boolean ok = dataService.deleteSupplier(id);
         if (ok) return ResponseEntity.ok().build();
-        return ResponseEntity.status(404).body(java.util.Map.of("error","Supplier not found"));
+        throw new ResourceNotFoundException("Supplier with id " + id + " not found");
     }
 
     private SupplierDTO toDtoWithProducts(Supplier s) {
