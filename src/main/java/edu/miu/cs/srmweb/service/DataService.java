@@ -2,7 +2,12 @@ package edu.miu.cs.srmweb.service;
 
 import edu.miu.cs.srmweb.model.Product;
 import edu.miu.cs.srmweb.model.Supplier;
+import edu.miu.cs.srmweb.repository.ProductRepository;
+import edu.miu.cs.srmweb.repository.SupplierRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 
 import java.time.LocalDate;
 import java.util.*;
@@ -13,7 +18,15 @@ public class DataService {
     private final Map<Integer, Supplier> suppliers = new HashMap<>();
     private final Map<Long, Product> products = new HashMap<>();
 
-    public DataService() {
+    private final SupplierRepository supplierRepository;
+    private final ProductRepository productRepository;
+
+    @Autowired
+    public DataService(SupplierRepository supplierRepository, ProductRepository productRepository) {
+        this.supplierRepository = supplierRepository;
+        this.productRepository = productRepository;
+
+        // initialize in-memory data as fallback; may be replaced by DB data on startup
         Supplier s1 = new Supplier(1, "Iowa Farms", "(641) 451-0009");
         Supplier s2 = new Supplier(2, "Hallmark Agro, Inc.", null);
 
@@ -31,6 +44,32 @@ public class DataService {
         products.put(p1.getProductId(), p1);
         products.put(p2.getProductId(), p2);
         products.put(p3.getProductId(), p3);
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void initDbIfEmpty() {
+        try {
+            if (supplierRepository.count() == 0 && productRepository.count() == 0) {
+                // save suppliers and products to DB
+                for (Supplier s : suppliers.values()) {
+                    // ensure products refer to supplier properly
+                    for (Product p : s.getProducts()) {
+                        p.setSupplier(s);
+                    }
+                    supplierRepository.save(s);
+                }
+                // refresh maps from DB
+                supplierRepository.findAll().forEach(s -> suppliers.put(s.getSupplierId(), s));
+                productRepository.findAll().forEach(p -> products.put(p.getProductId(), p));
+            } else {
+                // load from DB into memory maps
+                supplierRepository.findAll().forEach(s -> suppliers.put(s.getSupplierId(), s));
+                productRepository.findAll().forEach(p -> products.put(p.getProductId(), p));
+            }
+        } catch (Exception ex) {
+            // If DB unavailable, continue using in-memory data (already initialized in constructor)
+            System.err.println("DB not available or error during DB init: " + ex.getMessage());
+        }
     }
 
     public List<Supplier> getAllSuppliers() {

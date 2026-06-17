@@ -1,19 +1,29 @@
 package edu.miu.cs.srmweb.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import jakarta.persistence.*;
+
 import java.time.LocalDate;
 
+@Entity
+@Table(name = "products")
 public class Product {
-    private long productId;
+    @Id
+    private Long productId;
+
     private String name;
     private double unitPrice;
     private int quantityInStock;
     private LocalDate dateSupplied;
-    @com.fasterxml.jackson.annotation.JsonBackReference
+
+    @JsonBackReference
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "supplier_id")
     private Supplier supplier;
 
     public Product() {}
 
-    public Product(long productId, String name, double unitPrice, int quantityInStock, LocalDate dateSupplied, Supplier supplier) {
+    public Product(Long productId, String name, double unitPrice, int quantityInStock, LocalDate dateSupplied, Supplier supplier) {
         this.productId = productId;
         this.name = name;
         this.unitPrice = unitPrice;
@@ -22,11 +32,11 @@ public class Product {
         this.supplier = supplier;
     }
 
-    public long getProductId() {
+    public Long getProductId() {
         return productId;
     }
 
-    public void setProductId(long productId) {
+    public void setProductId(Long productId) {
         this.productId = productId;
     }
 
