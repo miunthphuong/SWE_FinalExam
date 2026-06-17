@@ -47,6 +47,7 @@ public class DataService {
     }
 
     @EventListener(ApplicationReadyEvent.class)
+    @org.springframework.transaction.annotation.Transactional
     public void initDbIfEmpty() {
         try {
             if (supplierRepository.count() == 0 && productRepository.count() == 0) {
@@ -58,12 +59,18 @@ public class DataService {
                     }
                     supplierRepository.save(s);
                 }
-                // refresh maps from DB
-                supplierRepository.findAll().forEach(s -> suppliers.put(s.getSupplierId(), s));
+                // refresh maps from DB and initialize collections
+                supplierRepository.findAll().forEach(s -> {
+                    s.getProducts().size(); // force initialize inside transaction
+                    suppliers.put(s.getSupplierId(), s);
+                });
                 productRepository.findAll().forEach(p -> products.put(p.getProductId(), p));
             } else {
-                // load from DB into memory maps
-                supplierRepository.findAll().forEach(s -> suppliers.put(s.getSupplierId(), s));
+                // load from DB into memory maps and initialize collections
+                supplierRepository.findAll().forEach(s -> {
+                    s.getProducts().size();
+                    suppliers.put(s.getSupplierId(), s);
+                });
                 productRepository.findAll().forEach(p -> products.put(p.getProductId(), p));
             }
         } catch (Exception ex) {
