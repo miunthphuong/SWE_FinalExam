@@ -28,35 +28,25 @@ public class DataSourceConfig {
     @Bean
     @Primary
     public DataSource dataSource() {
-        // Try MySQL datasource first if URL is set
-        if (mysqlUrl != null && !mysqlUrl.isBlank()) {
-            try {
-                HikariConfig cfg = new HikariConfig();
-                cfg.setJdbcUrl(mysqlUrl);
-                cfg.setUsername(mysqlUser);
-                cfg.setPassword(mysqlPass);
-                cfg.setDriverClassName(mysqlDriver);
-                cfg.setMaximumPoolSize(5);
-                HikariDataSource ds = new HikariDataSource(cfg);
-                // test connection
-                try (Connection c = ds.getConnection()) {
-                    // successful
-                    System.out.println("Using MySQL datasource: " + mysqlUrl);
-                    return ds;
-                }
-            } catch (Exception ex) {
-                System.err.println("Failed to connect to MySQL at " + mysqlUrl + ": " + ex.getMessage());
-                // fall through to H2
-            }
+        // Require MySQL datasource: fail fast if not available
+        if (mysqlUrl == null || mysqlUrl.isBlank()) {
+            throw new IllegalStateException("MySQL datasource URL is not configured (spring.datasource.url)");
         }
-
-        // Fallback to H2 in-memory
-        System.out.println("Falling back to in-memory H2 datasource");
-        HikariConfig h2cfg = new HikariConfig();
-        h2cfg.setJdbcUrl("jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=MySQL");
-        h2cfg.setUsername("sa");
-        h2cfg.setPassword("");
-        h2cfg.setDriverClassName("org.h2.Driver");
-        return new HikariDataSource(h2cfg);
+        try {
+            HikariConfig cfg = new HikariConfig();
+            cfg.setJdbcUrl(mysqlUrl);
+            cfg.setUsername(mysqlUser);
+            cfg.setPassword(mysqlPass);
+            cfg.setDriverClassName(mysqlDriver);
+            cfg.setMaximumPoolSize(10);
+            HikariDataSource ds = new HikariDataSource(cfg);
+            // test connection
+            try (Connection c = ds.getConnection()) {
+                System.out.println("Using MySQL datasource: " + mysqlUrl);
+                return ds;
+            }
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to connect to MySQL at " + mysqlUrl + ": " + ex.getMessage(), ex);
+        }
     }
 }

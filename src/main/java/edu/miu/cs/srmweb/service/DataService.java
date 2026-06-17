@@ -74,8 +74,8 @@ public class DataService {
                 productRepository.findAll().forEach(p -> products.put(p.getProductId(), p));
             }
         } catch (Exception ex) {
-            // If DB unavailable, continue using in-memory data (already initialized in constructor)
-            System.err.println("DB not available or error during DB init: " + ex.getMessage());
+            // If DB unavailable, fail fast now (we require MySQL)
+            throw new IllegalStateException("DB init failed: " + ex.getMessage(), ex);
         }
     }
 
@@ -97,5 +97,78 @@ public class DataService {
         Supplier s = suppliers.get(supplierId);
         if (s == null) return Collections.emptyList();
         return new ArrayList<>(s.getProducts());
+    }
+
+    // --- CRUD operations backed by repository ---
+    @org.springframework.transaction.annotation.Transactional
+    public Supplier createSupplier(Supplier s) {
+        Supplier saved = supplierRepository.save(s);
+        saved.getProducts().forEach(p -> p.setSupplier(saved));
+        suppliers.put(saved.getSupplierId(), saved);
+        return saved;
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public Optional<Supplier> updateSupplier(Integer id, Supplier incoming) {
+        return supplierRepository.findById(id).map(existing -> {
+            existing.setName(incoming.getName());
+            existing.setContactPhone(incoming.getContactPhone());
+            // do not overwrite products here
+            Supplier saved = supplierRepository.save(existing);
+            saved.getProducts().size();
+            suppliers.put(saved.getSupplierId(), saved);
+            return saved;
+        });
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public boolean deleteSupplier(Integer id) {
+        if (!supplierRepository.existsById(id)) return false;
+        supplierRepository.deleteById(id);
+        suppliers.remove(id);
+        // remove products from map that belong to supplier
+        products.values().removeIf(p -> p.getSupplier() != null && Objects.equals(p.getSupplier().getSupplierId(), id));
+        return true;
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public Product createProduct(Product p) {
+        // associate supplier if provided
+        if (p.getSupplier() != null && p.getSupplier().getSupplierId() != null) {
+            Supplier s = supplierRepository.findById(p.getSupplier().getSupplierId()).orElse(null);
+            p.setSupplier(s);
+        }
+        Product saved = productRepository.save(p);
+        products.put(saved.getProductId(), saved);
+        if (saved.getSupplier() != null) {
+            Supplier sup = suppliers.get(saved.getSupplier().getSupplierId());
+            if (sup != null) sup.getProducts().add(saved);
+        }
+        return saved;
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public Optional<Product> updateProduct(Long id, Product incoming) {
+        return productRepository.findById(id).map(existing -> {
+            existing.setName(incoming.getName());
+            existing.setUnitPrice(incoming.getUnitPrice());
+            existing.setQuantityInStock(incoming.getQuantityInStock());
+            existing.setDateSupplied(incoming.getDateSupplied());
+            if (incoming.getSupplier() != null && incoming.getSupplier().getSupplierId() != null) {
+                Supplier s = supplierRepository.findById(incoming.getSupplier().getSupplierId()).orElse(null);
+                existing.setSupplier(s);
+            }
+            Product saved = productRepository.save(existing);
+            products.put(saved.getProductId(), saved);
+            return saved;
+        });
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public boolean deleteProduct(Long id) {
+        if (!productRepository.existsById(id)) return false;
+        productRepository.deleteById(id);
+        products.remove(id);
+        return true;
     }
 }

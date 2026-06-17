@@ -8,6 +8,11 @@ import edu.miu.cs.srmweb.service.DataService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -29,6 +34,32 @@ public class SupplierController {
     public ResponseEntity<List<SupplierDTO>> getAllSuppliers() {
         List<SupplierDTO> dtos = dataService.getAllSuppliers().stream().map(this::toDtoWithProducts).collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
+    }
+
+    @PostMapping
+    public ResponseEntity<SupplierDTO> createSupplier(@org.springframework.web.bind.annotation.RequestBody SupplierDTO dto) {
+        Supplier s = new Supplier(dto.getSupplierId(), dto.getName(), dto.getContactPhone());
+        Supplier saved = dataService.createSupplier(s);
+        return ResponseEntity.ok(new SupplierDTO(saved.getSupplierId(), saved.getName(), saved.getContactPhone()));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateSupplier(@org.springframework.web.bind.annotation.PathVariable Integer id, @org.springframework.web.bind.annotation.RequestBody SupplierDTO dto) {
+        Supplier incoming = new Supplier(id, dto.getName(), dto.getContactPhone());
+        var opt = dataService.updateSupplier(id, incoming);
+        if (opt.isPresent()) {
+            Supplier s = opt.get();
+            return ResponseEntity.ok(new SupplierDTO(s.getSupplierId(), s.getName(), s.getContactPhone()));
+        } else {
+            return ResponseEntity.status(404).body(java.util.Map.of("error","Supplier not found"));
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteSupplier(@org.springframework.web.bind.annotation.PathVariable Integer id) {
+        boolean ok = dataService.deleteSupplier(id);
+        if (ok) return ResponseEntity.ok().build();
+        return ResponseEntity.status(404).body(java.util.Map.of("error","Supplier not found"));
     }
 
     private SupplierDTO toDtoWithProducts(Supplier s) {

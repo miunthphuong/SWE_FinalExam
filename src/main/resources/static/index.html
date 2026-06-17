@@ -2,49 +2,162 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>SRMWeb Test UI</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    button { margin: 5px; }
-    pre { background:#f6f6f6; padding:10px; max-height:400px; overflow:auto; }
-    .row { margin-bottom:12px; }
-  </style>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SRMWeb Admin</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>body{padding:20px} .pointer{cursor:pointer}</style>
 </head>
 <body>
-  <h2>SRMWeb - Quick Test UI</h2>
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1>SRMWeb Admin</h1>
+      <div>
+        <button id="refreshAll" class="btn btn-sm btn-secondary">Refresh</button>
+      </div>
+    </div>
 
-  <div class="row">
-    <button id="btnListProducts">List all products</button>
-    <button id="btnListSuppliers">List all suppliers</button>
+    <ul class="nav nav-tabs" id="tabs">
+      <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#suppliersTab">Suppliers</a></li>
+      <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#productsTab">Products</a></li>
+    </ul>
+
+    <div class="tab-content mt-3">
+      <div id="suppliersTab" class="tab-pane fade show active">
+        <div class="d-flex mb-2">
+          <button class="btn btn-primary me-2" id="openNewSupplier">New Supplier</button>
+          <input id="searchSupplier" placeholder="Search supplier" class="form-control w-25" />
+        </div>
+        <table class="table table-striped" id="suppliersTable">
+          <thead><tr><th>ID</th><th>Name</th><th>Phone</th><th>Products</th><th>Actions</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div id="productsTab" class="tab-pane fade">
+        <div class="d-flex mb-2">
+          <button class="btn btn-primary me-2" id="openNewProduct">New Product</button>
+          <input id="searchProduct" placeholder="Search product" class="form-control w-25" />
+        </div>
+        <table class="table table-striped" id="productsTable">
+          <thead><tr><th>ID</th><th>Name</th><th>Price</th><th>Qty</th><th>Supplier</th><th>Actions</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Supplier Modal -->
+    <div class="modal" tabindex="-1" id="supplierModal">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header"><h5 class="modal-title">Supplier</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+          <div class="modal-body">
+            <input id="sId" type="hidden">
+            <div class="mb-3"><label>Name</label><input id="sName" class="form-control"></div>
+            <div class="mb-3"><label>Phone</label><input id="sPhone" class="form-control"></div>
+          </div>
+          <div class="modal-footer"><button id="saveSupplier" class="btn btn-primary">Save</button><button class="btn btn-secondary" data-bs-dismiss="modal">Close</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Product Modal -->
+    <div class="modal" tabindex="-1" id="productModal">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header"><h5 class="modal-title">Product</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+          <div class="modal-body">
+            <input id="pId" type="hidden">
+            <div class="mb-3"><label>Name</label><input id="pName" class="form-control"></div>
+            <div class="mb-3"><label>Price</label><input id="pPrice" type="number" step="0.01" class="form-control"></div>
+            <div class="mb-3"><label>Quantity</label><input id="pQty" type="number" class="form-control"></div>
+            <div class="mb-3"><label>Date Supplied</label><input id="pDate" type="date" class="form-control"></div>
+            <div class="mb-3"><label>Supplier</label><select id="pSupplier" class="form-select"></select></div>
+          </div>
+          <div class="modal-footer"><button id="saveProduct" class="btn btn-primary">Save</button><button class="btn btn-secondary" data-bs-dismiss="modal">Close</button></div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
-  <div class="row">
-    <label>Get products by supplier id: <input id="supplierId" value="1" style="width:60px"></label>
-    <button id="btnBySupplier">Get</button>
-  </div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  const supplierModal = new bootstrap.Modal(document.getElementById('supplierModal'));
+  const productModal = new bootstrap.Modal(document.getElementById('productModal'));
 
-  <h3>Result</h3>
-  <pre id="out">Click a button to call the API</pre>
+  async function fetchSuppliers(){
+    const res = await fetch('/api/suppliers'); return res.json();
+  }
+  async function fetchProducts(){
+    const res = await fetch('/api/products'); return res.json();
+  }
 
-  <script>
-    const out = document.getElementById('out');
-    function show(o){ out.textContent = JSON.stringify(o, null, 2); }
+  async function refreshAll(){
+    const [suppliers, products] = await Promise.all([fetchSuppliers(), fetchProducts()]);
+    renderSuppliers(suppliers);
+    renderProducts(products);
+    populateSupplierSelect(suppliers);
+  }
 
-    document.getElementById('btnListProducts').addEventListener('click', async ()=>{
-      const res = await fetch('/api/products');
-      show(await res.json());
+  function renderSuppliers(list){
+    const tbody = document.querySelector('#suppliersTable tbody'); tbody.innerHTML='';
+    list.forEach(s=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${s.supplierId||''}</td><td>${s.name||''}</td><td>${s.contactPhone||''}</td><td>${(s.products||[]).length}</td>
+        <td><button class='btn btn-sm btn-outline-primary me-1' onclick='editSupplier(${s.supplierId})'>Edit</button>
+        <button class='btn btn-sm btn-outline-danger' onclick='delSupplier(${s.supplierId})'>Delete</button></td>`;
+      tbody.appendChild(tr);
     });
+  }
 
-    document.getElementById('btnListSuppliers').addEventListener('click', async ()=>{
-      const res = await fetch('/api/suppliers');
-      show(await res.json());
+  function renderProducts(list){
+    const tbody = document.querySelector('#productsTable tbody'); tbody.innerHTML='';
+    list.forEach(p=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${p.productId||''}</td><td>${p.name||''}</td><td>${p.unitPrice||''}</td><td>${p.quantityInStock||''}</td><td>${p.supplier?p.supplier.name:''}</td>
+        <td><button class='btn btn-sm btn-outline-primary me-1' onclick='editProduct(${p.productId})'>Edit</button>
+        <button class='btn btn-sm btn-outline-danger' onclick='delProduct(${p.productId})'>Delete</button></td>`;
+      tbody.appendChild(tr);
     });
+  }
 
-    document.getElementById('btnBySupplier').addEventListener('click', async ()=>{
-      const id = document.getElementById('supplierId').value;
-      const res = await fetch('/api/product/get/supplier/' + encodeURIComponent(id));
-      if (res.status >= 400) show({status: res.status, body: await res.json()}); else show(await res.json());
-    });
-  </script>
+  function populateSupplierSelect(list){
+    const sel = document.getElementById('pSupplier'); sel.innerHTML='';
+    sel.appendChild(new Option('', ''));
+    list.forEach(s=> sel.appendChild(new Option(s.name, s.supplierId)));
+  }
+
+  // Supplier actions
+  document.getElementById('openNewSupplier').addEventListener('click', ()=>{document.getElementById('sId').value=''; document.getElementById('sName').value=''; document.getElementById('sPhone').value=''; supplierModal.show();});
+  window.editSupplier = async (id)=>{
+    const list = await fetchSuppliers(); const s = list.find(x=>x.supplierId==id); if(!s) return alert('Not found'); document.getElementById('sId').value=s.supplierId; document.getElementById('sName').value=s.name; document.getElementById('sPhone').value=s.contactPhone; supplierModal.show();
+  }
+  document.getElementById('saveSupplier').addEventListener('click', async ()=>{
+    const id = document.getElementById('sId').value; const obj = {supplierId: id?parseInt(id):null, name: document.getElementById('sName').value, contactPhone: document.getElementById('sPhone').value};
+    if(id){
+      await fetch('/api/suppliers/'+id, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(obj)});
+    } else {
+      await fetch('/api/suppliers', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(obj)});
+    }
+    supplierModal.hide(); await refreshAll();
+  });
+  window.delSupplier = async (id)=>{ if(!confirm('Delete supplier '+id+'?')) return; await fetch('/api/suppliers/'+id, {method:'DELETE'}); await refreshAll(); }
+
+  // Product actions
+  document.getElementById('openNewProduct').addEventListener('click', ()=>{document.getElementById('pId').value=''; document.getElementById('pName').value=''; document.getElementById('pPrice').value=''; document.getElementById('pQty').value=''; document.getElementById('pDate').value=''; productModal.show();});
+  window.editProduct = async (id)=>{ const list = await fetchProducts(); const p = list.find(x=>x.productId==id); if(!p) return alert('Not found'); document.getElementById('pId').value=p.productId; document.getElementById('pName').value=p.name; document.getElementById('pPrice').value=p.unitPrice; document.getElementById('pQty').value=p.quantityInStock; document.getElementById('pDate').value=p.dateSupplied || '';
+    document.getElementById('pSupplier').value = p.supplier ? p.supplier.supplierId : '';
+    productModal.show(); }
+  document.getElementById('saveProduct').addEventListener('click', async ()=>{
+    const id = document.getElementById('pId').value; const obj = {productId: id?parseInt(id):null, name: document.getElementById('pName').value, unitPrice: parseFloat(document.getElementById('pPrice').value||0), quantityInStock: parseInt(document.getElementById('pQty').value||0), dateSupplied: document.getElementById('pDate').value || null, supplier: { supplierId: document.getElementById('pSupplier').value ? parseInt(document.getElementById('pSupplier').value) : null } };
+    if(id){ await fetch('/api/products/'+id, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(obj)}); } else { await fetch('/api/products', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(obj)}); }
+    productModal.hide(); await refreshAll();
+  });
+  window.delProduct = async (id)=>{ if(!confirm('Delete product '+id+'?')) return; await fetch('/api/products/'+id, {method:'DELETE'}); await refreshAll(); }
+
+  document.getElementById('refreshAll').addEventListener('click', refreshAll);
+  // initial load
+  refreshAll();
+</script>
 </body>
 </html>
